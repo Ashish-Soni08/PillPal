@@ -1,11 +1,34 @@
+from typing import List
+
 from dotenv import dotenv_values
-from llama_parse import LlamaParse
+
 from llama_index.core import (SimpleDirectoryReader, 
-                             VectorStoreIndex)
+                              Settings,
+                              VectorStoreIndex)
+
+from llama_index.core.ingestion import IngestionPipeline
+
+from llama_index.core.node_parser import SentenceSplitter
+
+from llama_index.core.schema import (BaseNode,
+                                     Document,
+                                     MetadataMode)
+
+from llama_index.vector_stores.qdrant import QdrantVectorStore
+
+from llama_parse import LlamaParse
+
+from qdrant_client import QdrantClient
+
+from nvidia_nims import (embedding_model,
+                         llm,
+                         rerank_model)
+
+from utils import add_metadata_to_documents
 
 config = dotenv_values(".env")
 
-def parse_document(pdf_document=["./sample_data/ozempic.pdf"], target_pages: str = None):
+def extract(pdf_document: str = ["./sample_data/ozempic.pdf"], language: str = "en", target_pages: str = None):
 
     parsing_instructions = """
     The provided document is a thin piece of folded paper that is part of every drug prescription box. 
@@ -22,10 +45,10 @@ def parse_document(pdf_document=["./sample_data/ozempic.pdf"], target_pages: str
     max_timeout=2000,
     verbose=True,
     show_progress=True,
-    language="en",
+    language=language,
     invalidate_cache=False,
     do_not_cache=False,
-    fast_mode=True,
+    fast_mode=True, # fast_mode=True doesn't work with result_type="markdown"
     ignore_errors=True,
     split_by_page=True,
     disable_ocr=True,
@@ -34,18 +57,52 @@ def parse_document(pdf_document=["./sample_data/ozempic.pdf"], target_pages: str
 
     file_extractor = {".pdf": pdf_parser}
 
-    documents = SimpleDirectoryReader(input_files=pdf_document, file_extractor=file_extractor).load_data()
-
+    documents = SimpleDirectoryReader(input_files=pdf_document, 
+                                      file_extractor=file_extractor,
+                                      filename_as_id=True,
+                                      required_exts=[".pdf"],
+                                      num_files_limit=1).load_data()
+    
     return documents
 
-# Works
-# documents = parse_document(target_pages="77")
-# print(len(documents))
-# print(documents[0])
 
-# index = VectorStoreIndex(vector_store=documents)
-# query_engine = index.query_engine()
+def transform(documents: List[Document]) -> List[Document]:
+    transformed_documents = []
+    for document in documents:
+        transformed_documents.append(
+            Document(
+                text=document.text,
+                metadata=document.metadata,
+                excluded_llm_metadata_keys=["file_name", "file_path", "file_type", "file_size", "creation_date", "last_modified_date", "total_pages_in_original_pdf", "size_of_original_pdf(MB)"],
+                excluded_embed_metadata_keys = ["file_path", "file_type", "file_size", "creation_date", "last_modified_date", "total_pages_in_original_pdf", "size_of_original_pdf(MB)"],
+                metadata_seperator="::",
+                metadata_template="{key}=>{value}",
+                text_template="Metadata: {metadata_str}\n-----\nContent: {content}",
+            )
+        )
+    return transformed_documents
 
-# query = "What can I use Ozempic for?"
-# response = query_engine.query(query)
-# print(response)
+def load(documents: List[Document]):
+    text_splitter = SentenceSplitter(chunk_size=1024, chunk_overlap=20)
+    qdrant_client = QdrantClient(url=config["QDRANT_ENDPOINT"], 
+                             api_key=config["QDRANT_API_KEY"])
+    vector_store = QdrantVectorStore(client=qdrant_client, collection_name="pillpal_documents")
+    
+    pipeline = IngestionPipeline(
+        name="pillpal_ingestion_pipeline",
+        project_name="pillpal_bot",
+        transformations=[text_splitter, embedding_model],
+        vector_store=vector_store,
+    )
+    nodes = pipeline.run(documents=documents)
+
+    index = VectorStoreIndex.from_vector_store(vector_store=vector_store, embed_model=embedding_model)
+
+    return nodes, index
+
+
+if __name__ == "__main__":
+    documents = extract()
+    documents = add_metadata_to_documents(documents)
+    documents = transform(documents)
+    nodes, index = load(documents)
