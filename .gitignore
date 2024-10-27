@@ -1,6 +1,7 @@
 # Added by Author: Ashish Soni, Date: 2024-10-25
 nvidia-ai/
 backend/.env
+backend/README.md
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
