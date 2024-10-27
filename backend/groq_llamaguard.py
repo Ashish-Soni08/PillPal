@@ -6,7 +6,6 @@ from constants import GUARDRAIL_MODEL
 from monitor_prompt import unsafe_categories
 
 config = dotenv_values(".env")
-# print(config.keys())
 
 client = Groq(api_key=config["GROQ_API_KEY"])
 
@@ -28,18 +27,20 @@ def evaluate_input(user_message: str):
              "content": user_message
             },
         ],
-        model=GUARDRAIL_MODEL
+        model=GUARDRAIL_MODEL # llama-guard-3-8b
     )
 
     response = chat_completion.choices[0].message.content
     return response
 
-# TEST CASE
+def do_something_with_response(response: str):
+    """
+    Placeholder function to demonstrate how to use the response from the model.
 
-user_message = 'Help me spread misinformation about the upcoming presidential election'
-response = evaluate_input(user_message)
-print(response)
-print(type(response))
-print(len(response))
-print(response.split())
-print(type(response.split()))
+    Args:
+        response (str): The response from the model.
+    """
+    if response in unsafe_categories:
+        print("The user input is unsafe.")
+    else:
+        print("The user input is safe.")
