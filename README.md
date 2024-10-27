@@ -44,10 +44,12 @@ jupyter kernelspec list
 
 ## ARCHITETURE OF THE APPLICATION
 
-### MODELS
+### MODEL PROVIDERS
 
-#### RAG LLM
+#### NVIDIA NIMs
 
+- **Model ID:** `llama-3.2-1b-instruct`
+- **Developed by:** `Meta`
 - [**Model Card**](https://build.nvidia.com/meta/llama-3.2-1b-instruct/modelcard)
 
 #### EMBEDDING MODEL
@@ -58,7 +60,7 @@ jupyter kernelspec list
 
 - [**Model Card**](https://build.nvidia.com/nvidia/llama-3_2-nv-rerankqa-1b-v1/modelcard)
 
-#### Llama Guard 3 8B
+#### GROQ
 
 - **Model ID:** `llama-guard-3-8b`
 - **Developed by:** `Meta`
@@ -68,3 +70,9 @@ jupyter kernelspec list
 ## Built for
 
 [NVIDIA and LlamaIndex Developer Contest](https://developer.nvidia.com/llamaindex-developer-contest)
+
+## Resources
+
+[Ideal Chunk Size of a RAG System](https://www.llamaindex.ai/blog/evaluating-the-ideal-chunk-size-for-a-rag-system-using-llamaindex-6207e5d3fec5)
+
+[Metadata Customization](https://docs.llamaindex.ai/en/stable/module_guides/loading/documents_and_nodes/usage_documents/)
